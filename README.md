@@ -24,6 +24,17 @@ the busted JSON:
 the command `jv 'a.b'` would still print `{"answer": 42` (although, the exit
 code would be nonzero, indicating an error).
 
+Try it out on [some big JSON](https://github.com/zeMirco/sf-city-lots-json);
+inside jv directory, after compiling:
+
+```
+> curl -L -o sf.zip "https://github.com/zeMirco/sf-city-lots-json/archive/master.zip"
+> unzip sf.zip
+> ./jv features[67000] < sf-city-lots-json/citylots.json
+```
+
+Should be quick.
+
 ## Installation
 
 There are absolutely no dependencies beyond the C standard libs. Go ahead
@@ -32,7 +43,7 @@ and:
 ```
 > git clone https://github.com/bauerca/jv.git
 > cd jv
-> gcc -o jv jv.c
+> gcc -o jv jv_cli.c
 ```
 
 ### Flags
@@ -47,7 +58,7 @@ The size of the buffer (in bytes) used by the JSON stream parser.
 stack may not be very big. GCC example:
 
 ```
-> gcc -D JVBUF=1024 -o jv jv.c
+> gcc -D JVBUF=1024 -o jv jv_cli.c
 ```
 
 #### JVDEBUG
@@ -56,7 +67,7 @@ Does not take a value. Define this to have jv spit out all kinds of
 debug messages. GCC example:
 
 ```
-> gcc -D JVDEBUG -o jv jv.c
+> gcc -D JVDEBUG -o jv jv_cli.c
 ```
 
 ## License

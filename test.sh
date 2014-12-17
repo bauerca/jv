@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # Compile it
-#gcc -D JVDEBUG -o jv jv.c
-gcc -D JVBUF=1 -o jv jv.c
-#gcc -D JVBUF=1 -D JVDEBUG -o jv jv.c
+#gcc -D JVDEBUG -o jv jv_cli.c
+gcc -D JVBUF=1 -o jv jv_cli.c
+#gcc -D JVBUF=1 -D JVDEBUG -o jv jv_cli.c
 
 ONLY=""
 
@@ -38,3 +38,5 @@ run "Nested array" '{"a":[1, 2]}' 'a[1]' '2'
 run "Screwy" '{"a":{1, 2]}' 'a[1]' ''
 run "Null" '[0, 1, null]' '[2]' 'null'
 run "String" '[0, 1, "hi"]' '[2]' 'hi'
+run "Escape quote" '[0, 1, "hi\\"hi"]' '[2]' 'hi\"hi'
+run "Skip string" '[0, "hi", "there"]' '[2]' 'there'
