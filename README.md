@@ -10,7 +10,7 @@ golden
 
 ## Usage
 
-This thing works on streams and keeps a small, mostly-predictable memory
+This thing works on streams and keeps a small and predictable memory
 footprint (it's all on the stack!), so there is no looking ahead to make sure
 JSON is valid before piping what you asked for to stdout. For example, given
 the busted JSON:
@@ -33,7 +33,14 @@ inside jv directory, after compiling:
 > ./jv features[67000] < sf-city-lots-json/citylots.json
 ```
 
-Should be quick.
+Better yet, **stream it**:
+
+```
+> curl -N -s "https://raw.githubusercontent.com/zemirco/sf-city-lots-json/master/citylots.json" | ./jv features[100]
+```
+
+Only 60 kb were downloaded, rather than a 21 mb zip! Of course, this is useless
+if you need the last element, but hey.
 
 ## Installation
 
