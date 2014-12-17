@@ -1,7 +1,8 @@
+#ifndef JVBUF
+#define JVBUF 256
+#endif
 
-#define BUF_SIZE 2048
-#define BUF_CHARS (BUF_SIZE - 1)
-#define BYTE sizeof(char)
+#define JVBYTE sizeof(char)
 
 enum return_code_t {
     OK,
@@ -10,15 +11,9 @@ enum return_code_t {
     END_OF_STREAM,
     STREAM_READ_ERROR,
     STREAM_WRITE_ERROR,
-
     ARRAY_INDEX_ERROR,
-
     NOT_AT_VALUE,
-
-    // Returned when a scan_key function does not match the
-    // path string.
     KEY_MISMATCH,
-
     BAD_PATH_STRING,
     EMPTY_PATH_STRING,
     WRITE_ERROR
@@ -171,7 +166,7 @@ struct json_stream_t {
      *  Internal
      */
 
-    char buffer[BUF_SIZE + 1];
+    char buffer[JVBUF + 1];
 
     /**
      *  Current position in buffer. When a new buffer is read in from the
@@ -386,3 +381,20 @@ const char *scan_array(struct json_stream_t *stream, const char *path);
  */
 
 const char *scan_value(struct json_stream_t *stream, const char *path);
+
+
+/**
+ *  Pipe functions. Traverse values while capturing their contents.
+ */
+
+int pipe_collection(struct json_stream_t *stream, struct output_t *out);
+
+/**
+ *  The string piper will not capture the opening and closing quotes.
+ */
+
+int pipe_string(struct json_stream_t *stream, struct output_t *out);
+int pipe_number(struct json_stream_t *stream, struct output_t *out);
+int pipe_null(struct json_stream_t *stream, struct output_t *out);
+
+int pipe_value(struct json_stream_t *stream, struct output_t *out);

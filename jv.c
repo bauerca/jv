@@ -18,7 +18,7 @@ int capture(const char *string, size_t len, struct output_t *out) {
     if (out == NULL) return OK;
 
     if (out->fp != NULL) {
-        num = fwrite(string, BYTE, len, out->fp);
+        num = fwrite(string, JVBYTE, len, out->fp);
         if (num != len) {
             //fprintf(stderr, "Error writing to stream.\n");
             //exit(STREAM_WRITE_ERROR);
@@ -42,6 +42,9 @@ int capture(const char *string, size_t len, struct output_t *out) {
 
 
 int get_key(const char *path, struct key_t *key) {
+#ifdef JVDEBUG
+    fprintf(stdout, "Getting key\n");
+#endif
     const char *chp;
 
     // First determine key type and value.
@@ -76,7 +79,7 @@ int get_key(const char *path, struct key_t *key) {
     // Now determine key end and beginning of next key.
     switch (key->type) {
         case ARRAY_INDEX: {
-            chp = strchr(path, ']');
+            chp = strchr(key->value, ']');
             if (chp == NULL) {
                 return BAD_PATH_STRING;
             }
@@ -85,7 +88,7 @@ int get_key(const char *path, struct key_t *key) {
             break;
         }
         case NAME: {
-            chp = strpbrk(path, "[.");
+            chp = strpbrk(key->value, "[.");
             key->next = (chp == NULL) ? path + strlen(path) : chp;
             key->len = key->next - key->value;
             break;
@@ -93,20 +96,27 @@ int get_key(const char *path, struct key_t *key) {
         case BRACKETED_NAME: {
             // ']' may be in the quoted string. Find the next one that
             // has a '"' in front of it.
-            while ((chp = strchr(path, ']')) != NULL) {
-                if (*(chp - 1) == '"') {
-                    key->next = chp + 1;
-                    break;
+            chp = key->value;
+            while (1) {
+                chp = strchr(chp, '"');
+                if (chp == NULL) {
+                    return BAD_PATH_STRING;
                 }
+                if (chp[-1] != '\\') break;
+                chp++;
             }
-            if (chp == NULL) {
+            if (chp[1] != ']') {
                 return BAD_PATH_STRING;
             }
-            key->len = (key->next - 2) - key->value;
+            key->next = chp + 2;
+            key->len = chp - key->value;
             break;
         }
     }
 
+#ifdef JVDEBUG
+    fprintf(stdout, "  key: %.*s, len: %lu\n", (int)key->len, key->value, key->len);
+#endif
     return OK;
 }
 
@@ -134,8 +144,8 @@ int read(struct json_stream_t *stream) {
     }
 
     // Get more data from the stream.
-    count = fread(stream->buffer, BYTE, BUF_SIZE, stream->src);
-    if (count != BUF_SIZE) {
+    count = fread(stream->buffer, JVBYTE, JVBUF, stream->src);
+    if (count != JVBUF) {
         if (ferror(stream->src)) {
             //fprintf(stderr, "Error reading from stream");
             //exit(1);
@@ -162,7 +172,7 @@ int init_stream(struct json_stream_t *stream, FILE *src) {
     stream->src = src;
     // stream->pos = stream->buffer; // set in read()
     // stream->prev_char = '\0'; // set in read()
-    // stream->buffer[BUF_SIZE] = '\0'; // set in read()
+    // stream->buffer[JVBUF] = '\0'; // set in read()
 
     stream->buffer[0] = '\0'; // avoids set prev_char in read().
     stream->prev_char = '\0';
@@ -186,12 +196,17 @@ int search(struct json_stream_t *stream, const char *chars, struct output_t *out
     const char *start;
     int code;
 
+#ifdef JVDEBUG
+    fprintf(stdout, "Searching stream for: %s\n", chars);
+    fprintf(stdout, "  buffer: %s\n", stream->pos + 1);
+#endif
+
     // stream->pos[0] can never be '\0'; therefore, (pos + 1) will never
     // be out of bounds (although it may point to '\0', which is fine for
     // strpbrk).
     start = stream->pos + 1;
     while ((chp = strpbrk(start, chars)) == NULL) {
-        code = capture(stream->pos, BUF_SIZE - (stream->pos - stream->buffer), out);
+        code = capture(stream->pos, strlen(stream->pos), out);
         if (code != OK) {
             return stream->code = code;
         }
@@ -199,8 +214,15 @@ int search(struct json_stream_t *stream, const char *chars, struct output_t *out
         if (code != OK) {
             return code;
         }
+#ifdef JVDEBUG
+        fprintf(stdout, "  buffer: %s\n", stream->pos);
+#endif
         start = stream->pos;
     }
+
+#ifdef JVDEBUG
+    fprintf(stdout, "  found at: %s\n", chp);
+#endif
 
     // Dump from current position to chp (exclusive).
     // If we read from the stream,
@@ -220,7 +242,7 @@ int search(struct json_stream_t *stream, const char *chars, struct output_t *out
 
 
 int traverse_collection(struct json_stream_t *stream, char open, int count, struct output_t *out) {
-    char match_chars[5] = {'\0', '\0', '"', '\\', '\0'};
+    char match_chars[4] = {'\0', '\0', '"', '\0'};
     char ch = 0;
     char close;
     int env = OBJECT;
@@ -248,9 +270,10 @@ int traverse_collection(struct json_stream_t *stream, char open, int count, stru
 }
 
 int traverse_string(struct json_stream_t *stream, struct output_t *out) {
-    while (stream->prev_char != '\\') {
+    do {
         if (search(stream, "\"", out) != OK) return stream->code;
     }
+    while (stream->prev_char != '\\');
     return bump(stream, out);
 }
 
@@ -319,6 +342,9 @@ int skip_value(struct json_stream_t *stream) {
 
 
 const char *scan_object(struct json_stream_t *stream, const char *path) {
+#ifdef JVDEBUG
+    fprintf(stdout, "Scanning object\n");
+#endif
     // Jump to the first '"' or closing '}'.
     if (search(stream, "\"}", NULL) != OK) return NULL;
 
@@ -345,6 +371,9 @@ const char *scan_object(struct json_stream_t *stream, const char *path) {
 
 
 const char *scan_array(struct json_stream_t *stream, const char *path) {
+#ifdef JVDEBUG
+    fprintf(stdout, "Scanning array\n");
+#endif
     struct key_t key;
     long int index;
     long int i;
@@ -398,6 +427,9 @@ const char *scan_array(struct json_stream_t *stream, const char *path) {
 
 
 const char *scan_value(struct json_stream_t *stream, const char *path) {
+#ifdef JVDEBUG
+    fprintf(stdout, "Scanning value\n");
+#endif
     if (path[0] == '\0') return path;
 
     switch (stream->pos[0]) {
@@ -411,6 +443,9 @@ const char *scan_value(struct json_stream_t *stream, const char *path) {
 
 
 const char *scan_key(struct json_stream_t *stream, const char *path) {
+#ifdef JVDEBUG
+    fprintf(stdout, "Scanning key, path: %s\n", path);
+#endif
     struct key_t path_key;
     int code;
     size_t i;
@@ -427,6 +462,9 @@ const char *scan_key(struct json_stream_t *stream, const char *path) {
     for (i = 0; i < path_key.len; i++) {
         if (path_key.value[i] != stream->pos[0]) {
             // Mismatch. Advance stream to closing quote.
+#ifdef JVDEBUG
+            fprintf(stdout, "  mismatch (path: %c, object: %c)\n", path_key.value[i], stream->pos[0]);
+#endif
             while (stream->pos[0] != '"' || stream->prev_char == '\\') {
                 if (search(stream, "\"", NULL) != OK) return NULL;
             }
@@ -440,6 +478,9 @@ const char *scan_key(struct json_stream_t *stream, const char *path) {
 
 
 const char *scan_pair(struct json_stream_t *stream, const char *path) {
+#ifdef JVDEBUG
+    fprintf(stdout, "Scanning pair\n");
+#endif
     const char *subpath;
 
     subpath = scan_key(stream, path);
@@ -452,6 +493,9 @@ const char *scan_pair(struct json_stream_t *stream, const char *path) {
 
     if (subpath == path) {
         // No key match. Skip the value.
+#ifdef JVDEBUG
+        fprintf(stdout, "  key mismatch (%s), skipping value.\n", path);
+#endif
         if (skip_value(stream) != OK) return NULL;
         return path;
     }
@@ -465,18 +509,40 @@ const char *scan_pair(struct json_stream_t *stream, const char *path) {
  */
 
 int pipe_collection(struct json_stream_t *stream, struct output_t *out) {
+#ifdef JVDEBUG
+    fprintf(stdout, "Piping collection\n");
+#endif
     return traverse_collection(stream, stream->pos[0], 1, out);
 }
 
 int pipe_string(struct json_stream_t *stream, struct output_t *out) {
-    return traverse_string(stream, out);
+#ifdef JVDEBUG
+    fprintf(stdout, "Piping string\n");
+#endif
+    // Avoid capturing opening quote. Bump to first char. Check it b/c
+    // search won't include it.
+    if (bump(stream, NULL) != OK) return stream->code;
+    if (stream->pos[0] == '"') return OK; // Empty string.
+
+    do {
+        if (search(stream, "\"", out) != OK) return stream->code;
+    }
+    while (stream->prev_char == '\\');
+
+    return bump(stream, NULL);
 }
 
 int pipe_number(struct json_stream_t *stream, struct output_t *out) {
+#ifdef JVDEBUG
+    fprintf(stdout, "Piping number\n");
+#endif
     return traverse_number(stream, out);
 }
 
 int pipe_null(struct json_stream_t *stream, struct output_t *out) {
+#ifdef JVDEBUG
+    fprintf(stdout, "Piping null\n");
+#endif
     return traverse_null(stream, out);
 }
 

@@ -3,15 +3,31 @@
 A C library and command line interface to get values from JSON
 streams.
 
-```bash
-> echo '{"dogs":[{"name":"oscar","breed":"golden"}]}' > jv 'dogs[0].breed'
+```
+> echo '{"dogs":[{"name":"oscar","breed":"golden"}]}' | jv 'dogs[0].breed'
 golden
 ```
 
+## Usage
+
+This thing works on streams and keeps a small, mostly-predictable memory
+footprint (it's all on the stack!), so there is no looking ahead to make sure
+JSON is valid before piping what you asked for to stdout. For example, given
+the busted JSON:
+
+```js
+{
+  "a": {
+    "b": {"answer": 42
+```
+
+the command `jv 'a.b'` would still print `{"answer": 42` (although, the exit
+code would be nonzero, indicating an error).
+
 ## Installation
 
-There are absolutely no dependencies beyond some C standard libs. Go ahead
-and
+There are absolutely no dependencies beyond the C standard libs. Go ahead
+and:
 
 ```
 > git clone https://github.com/bauerca/jv.git
@@ -19,8 +35,29 @@ and
 > gcc -o jv jv.c
 ```
 
-if you like.
+### Flags
 
+The behavior of jv is slightly configurable using compile flags;
+descriptions of the available flags follow.
+
+#### JVBUF
+
+The size of the buffer (in bytes) used by the JSON stream parser.
+(default: 256). Remember, this will be allocated once on the stack; the
+stack may not be very big. GCC example:
+
+```
+> gcc -D JVBUF=1024 -o jv jv.c
+```
+
+#### JVDEBUG
+
+Does not take a value. Define this to have jv spit out all kinds of
+debug messages. GCC example:
+
+```
+> gcc -D JVDEBUG -o jv jv.c
+```
 
 ## License
 
