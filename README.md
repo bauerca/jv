@@ -75,9 +75,11 @@ For example, with a filename
 and without
 
 ```
-> cat ./animals.json | jv dogs[0].breed
 > jv dogs[0].breed < ./animals.json
 ```
+
+The exit code is 0 if a match was found. Otherwise, a positive code is returned
+according to the list of codes found in the header file [jv.h](jv.h).
 
 Without dynamic memory, jv cannot look ahead for invalid JSON before piping
 what you asked for to stdout. It will, however, exit unsuccessfully when

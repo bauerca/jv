@@ -24,6 +24,25 @@ function run {
     fi
 }
 
+# Check exit code.
+printf '{"a":1}' | jv a >/dev/null || [ $? -eq 0 ] || {
+    echo "Failed exit code 0-1";
+    exit 1;
+}
+printf '{"a":1}\n' | jv a >/dev/null || [ $? -eq 0 ] || {
+    echo "Failed exit code 0-2";
+    exit 1;
+}
+printf '{"a":1}' | jv b >/dev/null || [ $? -eq 3 ] || {
+    echo "Failed exit code 3-1";
+    exit 1;
+}
+printf '{"a":1}\n' | jv b >/dev/null || [ $? -eq 3 ] || {
+    echo "Failed exit code 3-2";
+    exit 1;
+}
+
+
 run "Simplest" '{"hi":1}' 'hi' '1'
 run "Incomplete stream 1" '{"hi":{"hello":1}}' 'hi' '{"hello":1}'
 run "Incomplete stream 2" '{"hi":{"hello":1}' 'hi' '{"hello":1}'
@@ -40,3 +59,4 @@ run "Null" '[0, 1, null]' '[2]' 'null'
 run "String" '[0, 1, "hi"]' '[2]' 'hi'
 run "Escape quote" '[0, 1, "hi\\"hi"]' '[2]' 'hi\"hi'
 run "Skip string" '[0, "hi", "there"]' '[2]' 'there'
+run "Stay in array" '{"a": [1, 2], "b": [3]}' 'a[2]' ''

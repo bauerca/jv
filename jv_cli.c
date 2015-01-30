@@ -21,8 +21,8 @@ int main(int argc, char **argv) {
         path = argv[2];
     }
     else {
-        fprintf(stderr, "Usage: ga <file> <attr>\n");
-        fprintf(stderr, "Usage: jv main.browser.whatever < config.json\n");
+        fprintf(stderr, "Usage: jv [<file>] <attr>\n\n");
+        fprintf(stderr, "  For example: jv \"dogs[34].breed\" < animals.json\n\n");
         exit(1);
     }
 
@@ -37,8 +37,8 @@ int main(int argc, char **argv) {
         exit(stream.code);
     }
     if (path[0] != '\0') {
-        // Successful scan, no match. Return nothing.
-        exit(OK);
+        // Successful scan, no match. Return nonzero code.
+        exit(END_OF_STREAM);
     }
 
     // Match! Let's pipe.

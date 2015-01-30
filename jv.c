@@ -297,18 +297,30 @@ int traverse_null(struct json_stream_t *stream, struct output_t *out) {
  */
 
 int skip_collection(struct json_stream_t *stream) {
+#ifdef JVDEBUG
+    fprintf(stdout, "Skipping collection.\n");
+#endif
     return traverse_collection(stream, stream->pos[0], 1, NULL);
 }
 
 int skip_string(struct json_stream_t *stream) {
+#ifdef JVDEBUG
+    fprintf(stdout, "Skipping string.\n");
+#endif
     return traverse_string(stream, NULL);
 }
 
 int skip_number(struct json_stream_t *stream) {
+#ifdef JVDEBUG
+    fprintf(stdout, "Skipping number.\n");
+#endif
     return traverse_number(stream, NULL);
 }
 
 int skip_null(struct json_stream_t *stream) {
+#ifdef JVDEBUG
+    fprintf(stdout, "Skipping null.\n");
+#endif
     return traverse_null(stream, NULL);
 }
 
@@ -318,6 +330,9 @@ int skip_null(struct json_stream_t *stream) {
  */
 
 int skip_value(struct json_stream_t *stream) {
+#ifdef JVDEBUG
+    fprintf(stdout, "Skipping value.\n");
+#endif
     switch (stream->pos[0]) {
         case '{':
         case '[': return skip_collection(stream);
@@ -410,6 +425,8 @@ const char *scan_array(struct json_stream_t *stream, const char *path) {
         else if (skip_value(stream) != OK) {
             return NULL;
         }
+        // Value skipped. Check again for closing ']'.
+        if (stream->pos[0] == ']') return path;
     }
 
     // If we get out of the loop, we must skip the remaining
